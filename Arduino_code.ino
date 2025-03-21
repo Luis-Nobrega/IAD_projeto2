@@ -47,6 +47,7 @@ void missile(int signal){
 void loop() {
     if (Serial.available() > 0) { // Wait for incoming data
         String input = Serial.readStringUntil('\n'); // Read the incoming string
+        Serial.print(input)
         
         if (input.length() >= 7 && input[0] == '[' && input[6] == ']') { // Validate format [x,y,z]
             int signal1 = input[1] - '0'; // Extract first value
