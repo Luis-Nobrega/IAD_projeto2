@@ -175,8 +175,10 @@ class MotionTrackingApp(QWidget):
 
         if self.pos_y < center_frame_y - self.tolerancia:
             self.send_commands("[0,1,0]")
+            print(f"{center_frame_y} low")
         elif self.pos_y > center_frame_y + self.tolerancia:
             self.send_commands("[0,2,0]")
+            print(f"{center_frame_y} up")
         else:
             self.y_ok = 1
 

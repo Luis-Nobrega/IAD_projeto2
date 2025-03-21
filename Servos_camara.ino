@@ -67,11 +67,5 @@ void loop() {
         }
     }
     delay(wait); // Small delay to allow stable communication
-    servo1.write(90);
-    servo2.write(90);
-    servo3.write(90);
-
-    
-
 
 }
