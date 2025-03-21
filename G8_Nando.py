@@ -73,7 +73,7 @@ class MotionTrackingApp(QWidget):
         self.tracked_objects = {}  # Dicionário para armazenar objetos rastreados
         self.object_persistence = {}  # Contador para objetos desaparecidos
         self.max_lost_frames = 10  # Número máximo de frames que um objeto pode sumir antes de ser removido
-        self.tolerancia = 5
+        self.tolerancia = 1
             
         #Posição default do laser 
         self.pos_x = 0
