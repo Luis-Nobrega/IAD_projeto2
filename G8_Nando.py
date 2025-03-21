@@ -104,19 +104,19 @@ class MotionTrackingApp(QWidget):
 
     def send_commands(self, cmd):
     # If calibration is active, always send commands immediately
-    if self.calib_enabled:
+        if self.calib_enabled:
+            if ser:
+                ser.write(f"{str(cmd)}\n".encode())
+            return
+
+        # Otherwise, apply debounce logic
+        current_time = cv2.getTickCount() / cv2.getTickFrequency() * 1000  # current time in ms
+        if self.last_command == cmd and current_time - self.last_command_time < self.command_delay:
+            return  # Skip sending duplicate command too quickly
         if ser:
             ser.write(f"{str(cmd)}\n".encode())
-        return
-
-    # Otherwise, apply debounce logic
-    current_time = cv2.getTickCount() / cv2.getTickFrequency() * 1000  # current time in ms
-    if self.last_command == cmd and current_time - self.last_command_time < self.command_delay:
-        return  # Skip sending duplicate command too quickly
-    if ser:
-        ser.write(f"{str(cmd)}\n".encode())
-        self.last_command = cmd
-        self.last_command_time = current_time
+            self.last_command = cmd
+            self.last_command_time = current_time
 
 
 
