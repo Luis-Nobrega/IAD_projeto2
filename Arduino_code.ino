@@ -49,9 +49,9 @@ void loop() {
         String input = Serial.readStringUntil('\n'); // Read the incoming string
         
         if (input.length() >= 7 && input[0] == '[' && input[6] == ']') { // Validate format [x,y,z]
-            int signal1 = input[2] - '0'; // Extract first value
-            int signal2 = input[4] - '0'; // Extract second value
-            int signal3 = input[6] - '0'; // Extract third value
+            int signal1 = input[1] - '0'; // Extract first value
+            int signal2 = input[3] - '0'; // Extract second value
+            int signal3 = input[5] - '0'; // Extract third value
             
             movement1(signal1);
             movement2(signal2);
