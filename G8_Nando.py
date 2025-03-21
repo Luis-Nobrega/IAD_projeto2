@@ -88,9 +88,9 @@ class MotionTrackingApp(QWidget):
         self.resize(640, 480)
 
         # Timer para delay do envio dos comandos
-        self.last_command = None
+        """self.last_command = None
         self.last_command_time = 0
-        self.command_delay = 100  # delay em milissegundos
+        self.command_delay = 100  # delay em milissegundos"""
 
         # Função para enviar comandos com um delay
     """def send_commands(self, cmd):
@@ -102,7 +102,7 @@ class MotionTrackingApp(QWidget):
             self.last_command = cmd
             self.last_command_time = current_time"""
 
-    def send_commands(self, cmd):
+    """def send_commands(self, cmd):
     # If calibration is active, always send commands immediately
         if self.calib_enabled:
             if ser:
@@ -116,7 +116,7 @@ class MotionTrackingApp(QWidget):
         if ser:
             ser.write(f"{str(cmd)}\n".encode())
             self.last_command = cmd
-            self.last_command_time = current_time
+            self.last_command_time = current_time"""
 
 
 
@@ -184,9 +184,9 @@ class MotionTrackingApp(QWidget):
             self.fim = 1
 
         
-    """def send_commands(self, lista): #Enviar lista com o que cada motor deve andar
+    def send_commands(self, lista): #Enviar lista com o que cada motor deve andar
             if ser:
-                ser.write(f"{str(lista)}\n".encode())"""
+                ser.write(f"{str(lista)}\n".encode())
                 
     def detect_red_dot(self,frame):
         """Detecta um ponto vermelho em um fundo branco e retorna suas coordenadas."""
