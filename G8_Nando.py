@@ -93,14 +93,31 @@ class MotionTrackingApp(QWidget):
         self.command_delay = 100  # delay em milissegundos
 
         # Função para enviar comandos com um delay
-    def send_commands(self, cmd):
+    """def send_commands(self, cmd):
         current_time = cv2.getTickCount() / cv2.getTickFrequency() * 1000  # tempo em ms
         if self.last_command == cmd and current_time - self.last_command_time < self.command_delay:
             return  # evita enviar comando repetido com frequência
         if ser:
             ser.write(f"{str(cmd)}\n".encode())
             self.last_command = cmd
-            self.last_command_time = current_time
+            self.last_command_time = current_time"""
+
+    def send_commands(self, cmd):
+    # If calibration is active, always send commands immediately
+    if self.calib_enabled:
+        if ser:
+            ser.write(f"{str(cmd)}\n".encode())
+        return
+
+    # Otherwise, apply debounce logic
+    current_time = cv2.getTickCount() / cv2.getTickFrequency() * 1000  # current time in ms
+    if self.last_command == cmd and current_time - self.last_command_time < self.command_delay:
+        return  # Skip sending duplicate command too quickly
+    if ser:
+        ser.write(f"{str(cmd)}\n".encode())
+        self.last_command = cmd
+        self.last_command_time = current_time
+
 
 
     def toggle_tracking(self):
@@ -150,7 +167,7 @@ class MotionTrackingApp(QWidget):
             return
 
         if self.pos_x < center_frame_x - self.tolerancia:
-            self.send_commands("[2,0,0]")
+            self.send_commands("[1,0,0]")
         elif self.pos_x > center_frame_x + self.tolerancia:
             self.send_commands("[2,0,0]")
         else:
