@@ -61,6 +61,13 @@ class MotionTrackingApp(QWidget):
         slider_layout2.addWidget(self.distinction_label)
         slider_layout2.addWidget(self.distinction_slider)
         layout.addLayout(slider_layout2)
+
+        # Botão para disparar o update_frame com fire=True
+        self.fire_button = QPushButton("Disparar")
+        self.fire_button.clicked.connect(self.trigger_fire)
+
+        # Adiciona o botão ao layout
+        layout.addWidget(self.fire_button)
         
         self.setLayout(layout)
 
@@ -315,6 +322,9 @@ class MotionTrackingApp(QWidget):
             elif self.pos_x == center_x and self.pos_y == center_y and fire:
                 self.send_commands("[0,0,1]")
                     
+    def trigger_fire(self):
+        """Dispara o update_frame com fire=True."""
+        self.update_frame(fire=True)
 
     def convert_cv_qt(self, frame):
         """Converte o frame OpenCV para QPixmap para exibição no PyQt."""
