@@ -230,7 +230,7 @@ class MotionTrackingApp(QWidget):
             self.y_ok = 0
             self.calib_timer = QTimer()
             self.calib_timer.timeout.connect(self.calib_step)
-            self.calib_timer.start(10)
+            self.calib_timer.start(200)
         else:
             self.calib_timer.stop()
 
@@ -258,22 +258,41 @@ class MotionTrackingApp(QWidget):
             print("Erro: Laser não encontrado!")
             return
 
-        if self.pos_x < center_frame_x - self.tolerancia:
-            self.send_commands("[2,0,0]")
-        elif self.pos_x > center_frame_x + self.tolerancia:
-            self.send_commands("[1,0,0]")
+        # Proportional control gains (adjust these experimentally)
+        Kx = 0.1
+        Ky = 0.1
+
+        # Calculate errors between detected dot and frame center
+        error_x = center_frame_x - self.pos_x
+        error_y = center_frame_y - self.pos_y
+
+        # Adjust X-axis if error is larger than the tolerance
+        if abs(error_x) > self.tolerancia:
+            step_x = int(Kx * error_x)
+            if step_x > 0:
+                # Move right (e.g., command "1" with magnitude)
+                self.send_commands(f"[1,{abs(step_x)},0]")
+            else:
+                # Move left (e.g., command "2" with magnitude)
+                self.send_commands(f"[2,{abs(step_x)},0]")
         else:
             self.x_ok = 1
 
-        if self.pos_y < center_frame_y - self.tolerancia:
-            self.send_commands("[0,1,0]")
-        elif self.pos_y > center_frame_y + self.tolerancia:
-            self.send_commands("[0,2,0]")
+        # Adjust Y-axis if error is larger than the tolerance
+        if abs(error_y) > self.tolerancia:
+            step_y = int(Ky * error_y)
+            if step_y > 0:
+                # Move down (e.g., command "2" with magnitude)
+                self.send_commands(f"[0,2,{abs(step_y)}]")
+            else:
+                # Move up (e.g., command "1" with magnitude)
+                self.send_commands(f"[0,1,{abs(step_y)}]")
         else:
             self.y_ok = 1
 
         if self.x_ok and self.y_ok:
             self.fim = 1
+
 
     def send_commands(self, lista):
         if ser:
