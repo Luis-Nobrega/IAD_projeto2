@@ -230,7 +230,7 @@ class MotionTrackingApp(QWidget):
             self.y_ok = 0
             self.calib_timer = QTimer()
             self.calib_timer.timeout.connect(self.calib_step)
-            self.calib_timer.start(200)
+            self.calib_timer.start(1)
         else:
             self.calib_timer.stop()
 
