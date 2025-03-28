@@ -2,10 +2,7 @@ import sys
 import cv2
 import serial
 import numpy as np
-from PyQt5.QtWidgets import (
-    QApplication, QWidget, QLabel, QPushButton, QVBoxLayout, QSlider, QHBoxLayout, 
-    QGridLayout, QGroupBox, QSizePolicy, QScrollArea
-)
+from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QPushButton, QVBoxLayout, QSlider, QHBoxLayout, QGridLayout, QGroupBox, QSizePolicy, QScrollArea
 from PyQt5.QtGui import QImage, QPixmap
 from PyQt5.QtCore import QTimer, Qt
 from picamera2 import Picamera2
@@ -183,30 +180,30 @@ class MotionTrackingApp(QWidget):
                 return
             if ser:
                 if axis == 'y':
-                    ser.write(f"SERVOY:{plus}".encode())
-                    QTimer.singleShot(delay, lambda: ser.write(f"SERVOY:{minus}".encode()))
-                    QTimer.singleShot(2 * delay, lambda: ser.write(f"SERVOY:{base_val}".encode()))
+                    ser.write(f"SERVOY:{plus}\n".encode())
+                    QTimer.singleShot(delay, lambda: ser.write(f"SERVOY:{minus}\n".encode()))
+                    QTimer.singleShot(2 * delay, lambda: ser.write(f"SERVOY:{base_val}\n".encode()))
                 else:
-                    ser.write(f"SERVOX:{plus}".encode())
-                    QTimer.singleShot(delay, lambda: ser.write(f"SERVOX:{minus}".encode()))
-                    QTimer.singleShot(2 * delay, lambda: ser.write(f"SERVOX:{base_val}".encode()))
+                    ser.write(f"SERVOX:{plus}\n".encode())
+                    QTimer.singleShot(delay, lambda: ser.write(f"SERVOX:{minus}\n".encode()))
+                    QTimer.singleShot(2 * delay, lambda: ser.write(f"SERVOX:{base_val}\n".encode()))
             QTimer.singleShot(3 * delay, lambda: sequence(i + 1))
 
         sequence(0)
 
     def calibrate_motors(self):
         if ser:
-            ser.write(b"CALIBRAR")
+            ser.write(b"CALIBRAR\n")
 
     def update_servo_x(self):
         value = self.servo_x_slider.value()
         if ser:
-            ser.write(f"SERVOX:{value}".encode())
+            ser.write(f"SERVOX:{value}\n".encode())
 
     def update_servo_y(self):
         value = self.servo_y_slider.value()
         if ser:
-            ser.write(f"SERVOY:{value}".encode())
+            ser.write(f"SERVOY:{value}\n".encode())
 
     def read_serial_feedback(self):
         if ser and ser.in_waiting:
@@ -280,7 +277,7 @@ class MotionTrackingApp(QWidget):
 
     def send_commands(self, lista):
         if ser:
-            ser.write(f"{str(lista)}".encode())
+            ser.write(f"{str(lista)}\n".encode())
 
     def detect_red_dot(self, frame):
         hsv = cv2.cvtColor(frame, cv2.COLOR_RGB2HSV)
@@ -330,6 +327,7 @@ class MotionTrackingApp(QWidget):
                 new_objects.append(((center_x, center_y), (x, y, w, h)))
 
         largest_contour = max(contours, key=cv2.contourArea) if contours else None
+
         return new_objects, motion_mask, largest_contour
 
     def update_frame(self, fire=False):
