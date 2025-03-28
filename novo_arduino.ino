@@ -1,54 +1,13 @@
-#include <Servo.h>  // Include servo library
+#include <Servo.h> // Include servo library
 
-Servo servo1;  // Servo for X-axis movement
-Servo servo2;  // Servo for Y-axis movement
-Servo servo3;  // Servo to release missile
+Servo servo1; // Servo for X-axis movement
+Servo servo2; // Servo for Y-axis movement
+Servo servo3; // Servo to release missile
 
-int waitTime = 20; // Delay in milliseconds
-float pos1 = 90;   // Current position for servo1 (X-axis)
-float pos2 = 90;   // Current position for servo2 (Y-axis)
-float passo = 0.5; // Step size (adjust as needed)
-
-//-------------------------
-// Movement functions
-//-------------------------
-
-// Adjust servo1 by a number of steps defined by magnitude.
-void movement1(int direction, int magnitude) {
-  // direction: 1 means decrease pos1, 2 means increase pos1.
-  if (direction == 1) {
-    pos1 = constrain(pos1 - (passo * magnitude), 0, 180);
-  } else if (direction == 2) {
-    pos1 = constrain(pos1 + (passo * magnitude), 0, 180);
-  }
-  servo1.write(pos1);
-}
-
-// Adjust servo2 by a number of steps defined by magnitude.
-void movement2(int direction, int magnitude) {
-  // direction: 1 means increase pos2, 2 means decrease pos2.
-  if (direction == 1) {
-    pos2 = constrain(pos2 + (passo * magnitude), 0, 180);
-  } else if (direction == 2) {
-    pos2 = constrain(pos2 - (passo * magnitude), 0, 180);
-  }
-  servo2.write(pos2);
-}
-
-// Missile or "fire" command.
-void missile(int signal) {
-  if (signal == 1) { 
-    servo3.write(180);
-    delay(5 * waitTime);
-    servo3.write(0);
-    delay(5 * waitTime);
-    servo3.write(90);
-  }
-}
-
-//-------------------------
-// Setup and Loop
-//-------------------------
+int wait = 20; // Delay in ms
+float pos1 = 90; // Current position for servo1
+float pos2 = 90; // Current position for servo2
+float passo = 0.5; // Increment step for incremental movement
 
 void setup() {
   Serial.begin(9600); // Start serial communication
@@ -58,52 +17,72 @@ void setup() {
   delay(500);
 }
 
+void movement1(int signal) {
+  // Incremental control for servo1
+  if (signal == 1) { 
+    pos1 = constrain(pos1 - passo, 0, 180);
+  } else if (signal == 2) { 
+    pos1 = constrain(pos1 + passo, 0, 180);
+  }
+  servo1.write(pos1);
+}
+
+void movement2(int signal) {
+  // Incremental control for servo2
+  if (signal == 1) { 
+    pos2 = constrain(pos2 + passo, 0, 180);
+  } else if (signal == 2) { 
+    pos2 = constrain(pos2 - passo, 0, 180);
+  }
+  servo2.write(pos2);
+}
+
+void missile(int signal) {
+  if (signal == 1) { 
+    servo3.write(180); // Activate missile release
+    delay(5 * wait); 
+    servo3.write(0);
+    delay(5 * wait);
+    servo3.write(90);
+  }
+}
+
 void loop() {
   if (Serial.available() > 0) {
-    String input = Serial.readStringUntil('\n'); // Read incoming string
-    input.trim();
+    String input = Serial.readStringUntil('\n');
+    input.trim(); // Remove any extra whitespace
     
-    // Check if command is in the format [ ... ]
-    if (input.startsWith("[") && input.endsWith("]")) {
-      // Remove the surrounding brackets.
-      String inner = input.substring(1, input.length() - 1);
-      // Find positions of commas.
-      int firstComma = inner.indexOf(',');
-      int secondComma = inner.indexOf(',', firstComma + 1);
-      
-      if (firstComma != -1 && secondComma != -1) {
-        String s1 = inner.substring(0, firstComma);
-        String s2 = inner.substring(firstComma + 1, secondComma);
-        String s3 = inner.substring(secondComma + 1);
-        
-        int value1 = s1.toInt();
-        int value2 = s2.toInt();
-        int value3 = s3.toInt();
-        
-        // Interpret command according to our new protocol:
-        // If first value is nonzero, command is for servo1.
-        if (value1 != 0) {
-          // value1: direction for servo1; value2: magnitude.
-          movement1(value1, value2);
-        } 
-        // If first value is zero and second is nonzero, command is for servo2.
-        else if (value1 == 0 && value2 != 0) {
-          // value2: direction for servo2; value3: magnitude.
-          movement2(value2, value3);
-        } 
-        // If all are zero except the missile signal (e.g., [0,0,1]), then fire.
-        else if (value1 == 0 && value2 == 0 && value3 == 1) {
-          missile(value3);
-        }
-      }
+    // Check for absolute positioning commands from the Python sliders
+    if (input.startsWith("SERVOX:")) {
+      String valueStr = input.substring(7); // Extract angle value after "SERVOX:"
+      int angle = valueStr.toInt();
+      pos1 = constrain(angle, 0, 180);
+      servo1.write(pos1);
     }
-    // Also handle calibration command.
+    else if (input.startsWith("SERVOY:")) {
+      String valueStr = input.substring(7); // Extract angle value after "SERVOY:"
+      int angle = valueStr.toInt();
+      pos2 = constrain(angle, 0, 180);
+      servo2.write(pos2);
+    }
+    // Calibration command using absolute positioning
     else if (input == "CALIBRAR") {
-      pos1 = 100; // Example calibration values
+      pos1 = 100; // Adjust these center values as needed
       pos2 = 90;
       servo1.write(pos1);
       servo2.write(pos2);
     }
+    // Incremental movement command using the [x,y,z] format
+    else if (input.length() >= 7 && input.charAt(0) == '[' && input.charAt(6) == ']') {
+      int signal1 = input.charAt(1) - '0'; // Extract first value
+      int signal2 = input.charAt(3) - '0'; // Extract second value
+      int signal3 = input.charAt(5) - '0'; // Extract third value
+      movement1(signal1);
+      delay(wait);
+      movement2(signal2);
+      delay(wait);
+      missile(signal3);
+    }
   }
-  delay(waitTime); // Small delay to allow stable communication
+  delay(wait); // Small delay for stable communication
 }

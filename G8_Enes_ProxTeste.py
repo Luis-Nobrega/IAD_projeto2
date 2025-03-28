@@ -51,17 +51,15 @@ class MotionTrackingApp(QWidget):
         self.threshold_label = QLabel(f"Threshold: {self.threshold_slider.value()}")
         self.distinction_label = QLabel(f"Distinction: {self.distinction_slider.value()}")
 
-        # Manual buttons now use step=1 and the inverted mapping:
-        # For servo2 (vertical): up = [0,2,1] and down = [0,1,1]
-        # For servo1 (horizontal): left = [1,1,0] and right = [2,1,0]
         self.up_button = QPushButton("⬆️")
         self.down_button = QPushButton("⬇️")
         self.left_button = QPushButton("⬅️")
         self.right_button = QPushButton("➡️")
-        self.up_button.clicked.connect(lambda: self.send_commands("[0,2,1]"))
-        self.down_button.clicked.connect(lambda: self.send_commands("[0,1,1]"))
-        self.left_button.clicked.connect(lambda: self.send_commands("[1,1,0]"))
-        self.right_button.clicked.connect(lambda: self.send_commands("[2,1,0]"))
+
+        self.up_button.clicked.connect(lambda: self.send_commands("[0,1,0]"))
+        self.down_button.clicked.connect(lambda: self.send_commands("[0,2,0]"))
+        self.left_button.clicked.connect(lambda: self.send_commands("[2,0,0]"))
+        self.right_button.clicked.connect(lambda: self.send_commands("[1,0,0]"))
 
         self.servo_x_slider = QSlider(Qt.Orientation.Horizontal)
         self.servo_x_slider.setMinimum(0)
@@ -77,11 +75,11 @@ class MotionTrackingApp(QWidget):
         self.servo_y_slider.setTickInterval(10)
         self.servo_y_slider.sliderReleased.connect(self.update_servo_y)
 
-        # Easter egg buttons – these use absolute commands and a smaller step (1)
         self.yes_button = QPushButton("Diz que sim")
         self.no_button = QPushButton("Diz que não")
         self.mega_yes_button = QPushButton("Mega sim")
         self.mega_no_button = QPushButton("Mega não")
+
         self.yes_button.clicked.connect(lambda: self.perform_motion(axis='y', fast=False))
         self.no_button.clicked.connect(lambda: self.perform_motion(axis='x', fast=False))
         self.mega_yes_button.clicked.connect(lambda: self.perform_motion(axis='y', fast=True))
@@ -145,6 +143,7 @@ class MotionTrackingApp(QWidget):
         main_layout.addWidget(scroll, 2)
 
         self.setLayout(main_layout)
+
         self.setWindowTitle("Rastreamento de Movimento")
         self.resize(1000, 700)
 
@@ -169,14 +168,10 @@ class MotionTrackingApp(QWidget):
         self.read_serial_timer.start(100)
 
     def perform_motion(self, axis='y', fast=False):
-        # Easter egg function using absolute commands with step=1
         delay = 100 if fast else 300
         repetitions = 3
-        amplitude = 1
-        if axis == 'y':
-            base_val = self.servo_y_slider.value()
-        else:
-            base_val = self.servo_x_slider.value()
+        amplitude = 20
+        base_val = self.servo_y_slider.value() if axis == 'y' else self.servo_x_slider.value()
         plus = min(180, base_val + amplitude)
         minus = max(0, base_val - amplitude)
 
@@ -193,6 +188,7 @@ class MotionTrackingApp(QWidget):
                     QTimer.singleShot(delay, lambda: ser.write(f"SERVOX:{minus}\n".encode()))
                     QTimer.singleShot(2 * delay, lambda: ser.write(f"SERVOX:{base_val}\n".encode()))
             QTimer.singleShot(3 * delay, lambda: sequence(i + 1))
+
         sequence(0)
 
     def calibrate_motors(self):
@@ -227,6 +223,7 @@ class MotionTrackingApp(QWidget):
     def toggle_calib(self):
         self.calib_enabled = not self.calib_enabled
         self.toggle_button_calib.setText("Parar Calibração" if self.calib_enabled else "Iniciar Calibração")
+
         if self.calib_enabled:
             self.fim = 0
             self.x_ok = 0
@@ -237,73 +234,88 @@ class MotionTrackingApp(QWidget):
         else:
             self.calib_timer.stop()
 
+    # Updated calibration step using absolute positioning commands
     def calib_step(self):
         if self.fim:
             self.calib_timer.stop()
-            self.toggle_button.setText("Iniciar Rastreamento")
+            self.toggle_button_calib.setText("Iniciar Calibração")
             print("Calibração concluída")
             return
+
         frame = self.picam2.capture_array()
         altura, comprimento, _ = frame.shape
         center_frame_x = comprimento // 2
         center_frame_y = altura // 2
+
         cv2.line(frame, (center_frame_x, center_frame_y - 20), (center_frame_x, center_frame_y + 20), (0, 0, 0), 2)
         cv2.line(frame, (center_frame_x - 20, center_frame_y), (center_frame_x + 20, center_frame_y), (0, 0, 0), 2)
+
         q_image = self.convert_cv_qt(frame)
         self.video_label.setPixmap(q_image)
+
         self.pos_x, self.pos_y = self.detect_red_dot(frame)
+
         if self.pos_x is None or self.pos_y is None:
             print("Erro: Laser não encontrado!")
             return
-        # Gains for proportional control (tweak as needed)
+
+        # Proportional control gains (adjust these experimentally)
         Kx = 0.1
         Ky = 0.1
+
+        # Get the current servo positions from the sliders
+        current_servo_x = self.servo_x_slider.value()
+        current_servo_y = self.servo_y_slider.value()
+
+        # Calculate errors between frame center and red dot
         error_x = center_frame_x - self.pos_x
         error_y = center_frame_y - self.pos_y
-        # Invert horizontal commands: if error_x > 0 (dot is left), move left ([1,...]); if error_x < 0, move right ([2,...])
-        if abs(error_x) > self.tolerancia:
-            step_x = max(1, int(Kx * abs(error_x)))
-            if error_x > 0:
-                self.send_commands(f"[1,{step_x},0]")
-            else:
-                self.send_commands(f"[2,{step_x},0]")
-        else:
-            self.x_ok = 1
-        # Invert vertical commands: if error_y > 0 (dot is above), move up ([0,2,...]); if error_y < 0, move down ([0,1,...])
-        if abs(error_y) > self.tolerancia:
-            step_y = max(1, int(Ky * abs(error_y)))
-            if error_y > 0:
-                self.send_commands(f"[0,2,{step_y}]")
-            else:
-                self.send_commands(f"[0,1,{step_y}]")
-        else:
-            self.y_ok = 1
-        if self.x_ok and self.y_ok:
+
+        # Compute new absolute servo positions based on error
+        target_servo_x = current_servo_x + int(Kx * error_x)
+        target_servo_y = current_servo_y + int(Ky * error_y)
+
+        # Constrain the target angles between 0 and 180 degrees
+        target_servo_x = max(0, min(180, target_servo_x))
+        target_servo_y = max(0, min(180, target_servo_y))
+
+        # Send absolute positioning commands (compatible with the new Arduino code)
+        self.send_commands(f"SERVOX:{target_servo_x}")
+        self.send_commands(f"SERVOY:{target_servo_y}")
+
+        # If error is within tolerance, finish calibration
+        if abs(error_x) < self.tolerancia and abs(error_y) < self.tolerancia:
             self.fim = 1
 
-    def send_commands(self, cmd):
+    def send_commands(self, lista):
         if ser:
-            ser.write(f"{cmd}\n".encode())
+            ser.write(f"{str(lista)}\n".encode())
 
     def detect_red_dot(self, frame):
         hsv = cv2.cvtColor(frame, cv2.COLOR_RGB2HSV)
         lower_red1 = np.array([0,120,70])
         upper_red1 = np.array([10,255,255])
         lower_red2 = np.array([170,120,70])
-        upper_red2 = np.array([180,255,255])
+        upper_red2 = np.array([180, 255, 255])
+
         mask1 = cv2.inRange(hsv, lower_red1, upper_red1)
         mask2 = cv2.inRange(hsv, lower_red2, upper_red2)
         mask = cv2.bitwise_or(mask1, mask2)
+
         contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
         if not contours:
             return None, None
+
         largest_contour = max(contours, key=cv2.contourArea)
         x, y, w, h = cv2.boundingRect(largest_contour)
         center_x = x + w // 2
         center_y = y + h // 2
+
         cv2.circle(frame, (center_x, center_y), 5, (0, 255, 0), -1)
         cv2.putText(frame, f"({center_x}, {center_y})", (center_x + 10, center_y - 10),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+
         return center_x, center_y
 
     def update_threshold(self, value):
@@ -319,32 +331,39 @@ class MotionTrackingApp(QWidget):
         _, motion_mask = cv2.threshold(diff, self.threshold, 255, cv2.THRESH_BINARY)
         contours, _ = cv2.findContours(motion_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         new_objects = []
+
         for contour in contours:
             if cv2.contourArea(contour) > self.distinction_threshold:
                 x, y, w, h = cv2.boundingRect(contour)
-                center_x = x + w // 2
-                center_y = y + h // 2
+                center_x, center_y = x + w // 2, y + h // 2
                 new_objects.append(((center_x, center_y), (x, y, w, h)))
+
         largest_contour = max(contours, key=cv2.contourArea) if contours else None
+
         return new_objects, motion_mask, largest_contour
 
     def update_frame(self, fire=False):
         frame = self.picam2.capture_array()
         if frame is None:
             return
+
         gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
         if self.tracking_enabled and self.previous_frame is not None:
             detected_objects, motion_mask, large = self.detect_motion_objects(self.previous_frame, gray_frame)
-            colors = [(0,0,255), (255,0,0), (0,255,255), (255,0,255)]
+            colors = [(0, 0, 255), (255, 0, 0), (0, 255, 255), (255, 0, 255)]
+
             for i, (center, bbox) in enumerate(detected_objects):
                 color = colors[i % len(colors)]
                 cv2.circle(frame, center, 5, color, -1)
                 x, y, w, h = bbox
-                cv2.rectangle(frame, (x,y), (x+w,y+h), color, 2)
-                cv2.putText(frame, f"Objeto {i+1}", (x, y-5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
-            frame[motion_mask > 0] = (0,255,0)
+                cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
+                cv2.putText(frame, f"Objeto {i+1}", (x, y - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+
+            frame[motion_mask > 0] = (0, 255, 0)
             if large is not None:
                 self.follow_object(large, frame, fire)
+
         self.previous_frame = gray_frame.copy()
         q_image = self.convert_cv_qt(frame)
         self.video_label.setPixmap(q_image)
@@ -353,23 +372,25 @@ class MotionTrackingApp(QWidget):
         altura, comprimento, _ = frame.shape
         center_frame_x = comprimento // 2
         center_frame_y = altura // 2
+
         if not self.pos_x and not self.pos_y:
             self.pos_x = center_frame_x
             self.pos_y = center_frame_y
+
         x, y, w, h = cv2.boundingRect(large)
-        center_x = x + w // 2
-        center_y = y + h // 2
-        # Use a fixed step of 1 for tracking relative adjustments (with inverted mapping)
+        center_x, center_y = x + w // 2, y + h // 2
+
         if self.pos_x < center_x - self.tolerancia:
-            self.send_commands("[1,1,0]")  # move left
+            self.send_commands("[1,0,0]")
         elif self.pos_x > center_x + self.tolerancia:
-            self.send_commands("[2,1,0]")  # move right
+            self.send_commands("[2,0,0]")
+
         if self.pos_y < center_y - self.tolerancia:
-            self.send_commands("[0,2,1]")  # move up
+            self.send_commands("[0,1,0]")
         elif self.pos_y > center_y + self.tolerancia:
-            self.send_commands("[0,1,1]")  # move down
+            self.send_commands("[0,2,0]")
         elif self.pos_x == center_x and self.pos_y == center_y and fire:
-            self.send_commands("[0,0,1]")  # fire
+            self.send_commands("[0,0,1]")
 
     def trigger_fire(self):
         self.update_frame(fire=True)
