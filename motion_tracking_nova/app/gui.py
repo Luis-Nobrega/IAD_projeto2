@@ -165,6 +165,27 @@ class MotionTrackingApp(QWidget):
         def set_y(val): self.servo_y_slider.setValue(val)
         read_serial_feedback(set_x, set_y)
 
+    def follow_object(self, bbox):
+        x, y, w, h = bbox
+        center_x = x + w // 2
+        center_y = y + h // 2
+
+        frame_h, frame_w = self.previous_frame.shape
+        mid_x = frame_w // 2
+        mid_y = frame_h // 2
+
+        tol = self.tolerancia
+
+        if center_x < mid_x - tol:
+            send_commands("[2,0,0]")  # esquerda
+        elif center_x > mid_x + tol:
+            send_commands("[1,0,0]")  # direita
+
+        if center_y < mid_y - tol:
+            send_commands("[0,1,0]")  # cima
+        elif center_y > mid_y + tol:
+            send_commands("[0,2,0]")  # baixo
+
     def update_frame(self):
         frame = self.camera.get_frame()
         if frame is None:
@@ -188,6 +209,9 @@ class MotionTrackingApp(QWidget):
                 cv2.putText(frame, f"Objeto {i+1}", (x, y - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
 
             frame[motion_mask > 0] = (0, 255, 0)
+
+            if large:
+                self.follow_object(large)
 
         self.previous_frame = gray_frame.copy()
         self.video_label.setPixmap(self.camera.to_qt_image(frame))
