@@ -61,6 +61,18 @@ def perform_motion_sequence(axis, base_val, delay, repetitions, amplitude):
 
     sequence(0)
 
+# ========== GRADUAL SERVO MOVEMENT ==========
+
+def move_servo_gradually(axis, current_val, target_val, step=2, delay=30):
+    steps = []
+    if target_val > current_val:
+        steps = list(range(current_val, target_val + 1, step))
+    else:
+        steps = list(range(current_val, target_val - 1, -step))
+
+    for i, val in enumerate(steps):
+        QTimer.singleShot(i * delay, lambda v=val: update_servo(axis, v))
+
 # ========== CALIBRATION LOOP STEP ==========
 
 def start_calibration_step(camera, get_slider_vals, set_slider_vals, finish_callback, tolerancia=1, Kx=0.1, Ky=0.1):
@@ -81,15 +93,15 @@ def start_calibration_step(camera, get_slider_vals, set_slider_vals, finish_call
 
     current_x, current_y = get_slider_vals()
 
-    # Corrigido: inverter direção dos erros
     error_x = pos_x - center_x
     error_y = pos_y - center_y
 
     target_x = max(0, min(180, current_x + int(Kx * error_x)))
     target_y = max(0, min(180, current_y + int(Ky * error_y)))
 
-    update_servo('x', target_x)
-    update_servo('y', target_y)
+    move_servo_gradually('x', current_x, target_x)
+    move_servo_gradually('y', current_y, target_y)
+
     set_slider_vals(target_x, target_y)
 
     if abs(error_x) < tolerancia and abs(error_y) < tolerancia:
