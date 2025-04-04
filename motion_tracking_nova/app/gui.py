@@ -5,7 +5,7 @@ from PyQt5.QtWidgets import (
     QHBoxLayout, QGridLayout, QGroupBox, QSizePolicy, QScrollArea
 )
 from PyQt5.QtGui import QImage, QPixmap
-from PyQt5.QtCore import QTimer, Qt
+from PyQt5.QtCore import QTimer, Qt, QElapsedTimer
 
 from .camera import CameraManager
 from .detection import detect_red_dot, detect_motion_objects
@@ -21,6 +21,7 @@ class MotionTrackingApp(QWidget):
         super().__init__()
 
         self.camera = CameraManager()
+        self.manual_override_timer = QElapsedTimer()
 
         self.video_label = QLabel(self)
         self.video_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
@@ -47,7 +48,6 @@ class MotionTrackingApp(QWidget):
         self.servo_y_slider.setValue(90)
         self.servo_y_slider.sliderReleased.connect(self.on_servo_y_release)
 
-        # Easter egg buttons
         self.yes_button = QPushButton("Diz que sim")
         self.no_button = QPushButton("Diz que não")
         self.mega_yes_button = QPushButton("Mega sim")
@@ -115,9 +115,11 @@ class MotionTrackingApp(QWidget):
 
     def on_servo_x_release(self):
         update_servo('x', self.servo_x_slider.value())
+        self.manual_override_timer.start()
 
     def on_servo_y_release(self):
         update_servo('y', self.servo_y_slider.value())
+        self.manual_override_timer.start()
 
     def toggle_calibration(self, checked):
         if checked:
@@ -156,6 +158,9 @@ class MotionTrackingApp(QWidget):
             self.video_label.setPixmap(QPixmap.fromImage(img))
 
     def sync_sliders_with_arduino(self):
+        if self.manual_override_timer.isValid() and self.manual_override_timer.elapsed() < 300:
+            return  # skip update if within 300ms of manual override
+
         def set_x(val): self.servo_x_slider.setValue(val)
         def set_y(val): self.servo_y_slider.setValue(val)
         read_serial_feedback(set_x, set_y)
