@@ -1,1 +1,2 @@
-Ainda não temos :)
+# Coisas gerais
+FIcheiro já funciona + Arduino antigo 
