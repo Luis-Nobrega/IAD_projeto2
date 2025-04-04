@@ -16,6 +16,7 @@ from .control import (
     move_servo_gradually
 )
 from .easter_eggs import play_motion
+from .widgets import create_tracker_group
 
 class MotionTrackingApp(QWidget):
     def __init__(self):
@@ -70,6 +71,11 @@ class MotionTrackingApp(QWidget):
         self.required_consistency = 3  # frames consecutivos
         self.last_tracked_bbox = None
 
+        self.consistency_slider, self.consistency_label, tracker_group = create_tracker_group(
+            initial_value=self.required_consistency,
+            callback=self.update_consistency_threshold
+        )
+
         layout = QVBoxLayout()
         layout.addWidget(self.video_label)
         layout.addWidget(self.toggle_button)
@@ -84,6 +90,8 @@ class MotionTrackingApp(QWidget):
         servo_layout.addWidget(self.servo_y_slider)
         servo_group.setLayout(servo_layout)
         layout.addWidget(servo_group)
+
+        layout.addWidget(tracker_group)
 
         easter_group = QGroupBox("Easter Eggs")
         easter_layout = QVBoxLayout()
@@ -108,6 +116,10 @@ class MotionTrackingApp(QWidget):
         self.feedback_timer = QTimer()
         self.feedback_timer.timeout.connect(self.sync_sliders_with_arduino)
         self.feedback_timer.start(100)
+
+    def update_consistency_threshold(self, value):
+        self.required_consistency = value
+        self.consistency_label.setText(f"Consistência: {value}")
 
     def toggle_tracking(self):
         self.tracking_enabled = not self.tracking_enabled
