@@ -80,8 +80,10 @@ def start_calibration_step(camera, get_slider_vals, set_slider_vals, finish_call
         return frame, pos_x, pos_y
 
     current_x, current_y = get_slider_vals()
-    error_x = center_x - pos_x
-    error_y = center_y - pos_y
+
+    # Corrigido: inverter direção dos erros
+    error_x = pos_x - center_x
+    error_y = pos_y - center_y
 
     target_x = max(0, min(180, current_x + int(Kx * error_x)))
     target_y = max(0, min(180, current_y + int(Ky * error_y)))
