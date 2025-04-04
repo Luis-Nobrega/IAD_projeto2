@@ -29,6 +29,10 @@ def detect_red_dot(frame):
 
 def detect_motion_objects(previous_frame, current_frame, threshold, distinction_threshold):
     diff = cv2.absdiff(previous_frame, current_frame)
+
+    # DEBUG: verificar valores médios para avaliar sensibilidade
+    # print(f"mean diff: {np.mean(diff):.2f}, max: {np.max(diff)}")
+
     _, motion_mask = cv2.threshold(diff, threshold, 255, cv2.THRESH_BINARY)
     contours, _ = cv2.findContours(motion_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
@@ -39,5 +43,7 @@ def detect_motion_objects(previous_frame, current_frame, threshold, distinction_
             center_x, center_y = x + w // 2, y + h // 2
             new_objects.append(((center_x, center_y), (x, y, w, h)))
 
-    largest_contour = max(contours, key=cv2.contourArea) if contours else None
-    return new_objects, motion_mask, largest_contour
+    # Garantir que a maior contour válida seja retornada
+    largest = max(new_objects, key=lambda obj: obj[1][2] * obj[1][3]) if new_objects else None
+
+    return new_objects, motion_mask, largest[1] if largest else None
