@@ -1,7 +1,0 @@
-if (Serial.available()) {
-  String cmd = Serial.readStringUntil('\n');
-  if (cmd == "CALIBRAR") {
-    servoX.write(90);  // Or whatever is the center
-    servoY.write(90);
-  }
-}
