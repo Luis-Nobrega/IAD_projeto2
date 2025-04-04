@@ -12,7 +12,8 @@ from .detection import detect_red_dot, detect_motion_objects
 from .control import (
     send_commands, update_servo, calibrate_motors,
     read_serial_feedback, perform_motion_sequence,
-    start_calibration_step, trigger_fire_command
+    start_calibration_step, trigger_fire_command,
+    move_servo_gradually
 )
 from .easter_eggs import play_motion
 
@@ -60,7 +61,7 @@ class MotionTrackingApp(QWidget):
 
         self.threshold = 5
         self.distinction_threshold = 6000
-        self.tolerancia = 1
+        self.tolerancia = 5
         self.previous_frame = None
         self.tracking_enabled = False
         self.calibrating = False
@@ -165,7 +166,7 @@ class MotionTrackingApp(QWidget):
         def set_y(val): self.servo_y_slider.setValue(val)
         read_serial_feedback(set_x, set_y)
 
-    def follow_object(self, bbox):
+    def follow_object_smooth(self, bbox):
         x, y, w, h = bbox
         center_x = x + w // 2
         center_y = y + h // 2
@@ -174,17 +175,21 @@ class MotionTrackingApp(QWidget):
         mid_x = frame_w // 2
         mid_y = frame_h // 2
 
-        tol = self.tolerancia
+        error_x = center_x - mid_x
+        error_y = center_y - mid_y
 
-        if center_x < mid_x - tol:
-            send_commands("[2,0,0]")  # esquerda
-        elif center_x > mid_x + tol:
-            send_commands("[1,0,0]")  # direita
+        current_x = self.servo_x_slider.value()
+        current_y = self.servo_y_slider.value()
 
-        if center_y < mid_y - tol:
-            send_commands("[0,1,0]")  # cima
-        elif center_y > mid_y + tol:
-            send_commands("[0,2,0]")  # baixo
+        Kx, Ky = 0.2, 0.2
+        target_x = max(0, min(180, current_x + int(Kx * error_x)))
+        target_y = max(0, min(180, current_y + int(Ky * error_y)))
+
+        move_servo_gradually('x', current_x, target_x)
+        move_servo_gradually('y', current_y, target_y)
+
+        self.servo_x_slider.setValue(target_x)
+        self.servo_y_slider.setValue(target_y)
 
     def update_frame(self):
         frame = self.camera.get_frame()
@@ -211,7 +216,7 @@ class MotionTrackingApp(QWidget):
             frame[motion_mask > 0] = (0, 255, 0)
 
             if large:
-                self.follow_object(large)
+                self.follow_object_smooth(large)
 
         self.previous_frame = gray_frame.copy()
         self.video_label.setPixmap(self.camera.to_qt_image(frame))
