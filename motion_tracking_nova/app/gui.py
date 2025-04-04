@@ -66,6 +66,10 @@ class MotionTrackingApp(QWidget):
         self.tracking_enabled = False
         self.calibrating = False
 
+        self.object_consistency_counter = 0
+        self.required_consistency = 3  # frames consecutivos
+        self.last_tracked_bbox = None
+
         layout = QVBoxLayout()
         layout.addWidget(self.video_label)
         layout.addWidget(self.toggle_button)
@@ -216,7 +220,15 @@ class MotionTrackingApp(QWidget):
             frame[motion_mask > 0] = (0, 255, 0)
 
             if large:
-                self.follow_object_smooth(large)
+                if self.last_tracked_bbox and abs(large[0] - self.last_tracked_bbox[0]) < 30 and abs(large[1] - self.last_tracked_bbox[1]) < 30:
+                    self.object_consistency_counter += 1
+                else:
+                    self.object_consistency_counter = 1
+
+                self.last_tracked_bbox = large
+
+                if self.object_consistency_counter >= self.required_consistency:
+                    self.follow_object_smooth(large)
 
         self.previous_frame = gray_frame.copy()
         self.video_label.setPixmap(self.camera.to_qt_image(frame))
