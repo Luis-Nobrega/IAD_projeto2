@@ -14,13 +14,13 @@ Esta pasta contém a versão mais recente do sistema de rastreamento de moviment
 - **`arduino/`**: Contém o código Arduino necessário para controlar os servos e outros componentes.
 
 ### 2. `motion_tracking_old_but_gold/`
-Esta pasta contém versões antigas e funcionais do sistema. Nenhum ficheiro tem tudo a funcionar. Alguns têm partes que complementam os outros 
+Esta pasta contém versões antigas e funcionais do sistema. Esta versão funciona quase completamente, só falha no rastreamento! Tem movimento lento de servos mas de resto está tudo ok.
 
 - **`arduino.ino`**: Código Arduino para controle dos servos e disparo do míssil.
 - **`G8_Enes_Funcional.py`**: Uma versão funcional do sistema de rastreamento, com lógica de detecção e rastreamento de objetos.
 
 ### 3. `Old/`
-Esta pasta contém versões experimentais e testes antigos do sistema. Os nomes dos arquivos refletem o estado de desenvolvimento ou humor do autor no momento.
+Esta pasta contém versões experimentais e testes antigos do sistema. Não recomendada.
 
 - Exemplos de arquivos:
   - `G8_Enes_VAI_FUNCIONAR_CONFIA.py`
@@ -30,7 +30,7 @@ Esta pasta contém versões experimentais e testes antigos do sistema. Os nomes 
 > **Nota:** Use esta pasta apenas para referência histórica ou para recuperar ideias de implementações anteriores.
 
 ### 4. `Testes_nando/`
-Esta pasta contém testes e implementações específicas realizadas por "Nando". É uma área de experimentação e desenvolvimento.
+Esta pasta contém testes e implementações específicas realizadas pelo Nando. Tenta usar steps maiores com base na distância do objeto e do centro. ** Não foi testada ** e não resolve o problema do rastreamento
 
 - **`Tracking_funcional_Nando.py`**: Uma versão funcional do sistema com ajustes e melhorias específicas.
 - **`arduino_Nando.ino`**: Código Arduino correspondente para os testes realizados nesta pasta.
