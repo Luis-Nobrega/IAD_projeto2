@@ -213,8 +213,11 @@ class MotionTrackingApp(QWidget):
                     _, x, y = line.split(":")
                     self.servo_x_slider.setValue(int(x))
                     self.servo_y_slider.setValue(int(y))
+                    # Update current positions for tracking
+                    self.pos_x = int(x)
+                    self.pos_y = int(y)
             except Exception as e:
-                print(f"Erro ao ler da serial: {e}")
+                print(f"Serial read error: {e}")
 
     def toggle_tracking(self):
         self.tracking_enabled = not self.tracking_enabled
