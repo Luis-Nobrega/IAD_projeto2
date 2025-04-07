@@ -209,7 +209,7 @@ class MotionTrackingApp(QWidget):
             self.picam2.start()
         except Exception as e:
             print(f"Camera error: {e}")
-            self.show_error_message("Camera initialization failed")
+            #self.show_error_message("Camera initialization failed")
 
     def setup_variables(self):
         self.tracking_enabled = False
