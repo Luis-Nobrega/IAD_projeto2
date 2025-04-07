@@ -85,7 +85,7 @@ class MotionTrackingApp(QWidget):
         self.toggle_button.clicked.connect(self.toggle_tracking)
         self.toggle_button_calib.clicked.connect(self.toggle_calibration)
         self.fire_button.clicked.connect(self.trigger_fire)
-        self.motor_calib_button.clicked.connect(self.calibrate_motors)
+        #self.motor_calib_button.clicked.connect(self.calibrate_motors)
         
         # Threshold controls
         self.threshold_slider = QSlider(Qt.Horizontal)
