@@ -2,417 +2,399 @@ import sys
 import cv2
 import serial
 import numpy as np
-from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QPushButton, QVBoxLayout, QSlider, QHBoxLayout, QGridLayout, QGroupBox, QSizePolicy, QScrollArea
+from PyQt5.QtWidgets import (QApplication, QWidget, QLabel, QPushButton, 
+                            QVBoxLayout, QSlider, QHBoxLayout, QGridLayout, 
+                            QGroupBox, QSizePolicy, QScrollArea)
 from PyQt5.QtGui import QImage, QPixmap
-from PyQt5.QtCore import QTimer, Qt
+from PyQt5.QtCore import QTimer, Qt, pyqtSignal
 from picamera2 import Picamera2
 
-try:
-    ser = serial.Serial('/dev/ttyACM0', 9600, timeout=1)
-except serial.SerialException:
-    print("Erro: não foi possível abrir a porta serial")
-    ser = None
+class SerialWrapper:
+    def __init__(self, port='/dev/ttyACM0', baudrate=9600):
+        self.ser = None
+        try:
+            self.ser = serial.Serial(port, baudrate, timeout=1)
+            print(f"Connected to {port}")
+        except serial.SerialException as e:
+            print(f"Error opening serial port: {e}")
+    
+    def write(self, data):
+        if self.ser and self.ser.is_open:
+            try:
+                self.ser.write(data)
+                return True
+            except serial.SerialException:
+                return False
+        return False
+    
+    def readline(self):
+        if self.ser and self.ser.in_waiting:
+            try:
+                return self.ser.readline().decode('utf-8').strip()
+            except:
+                return None
+        return None
+    
+    def close(self):
+        if self.ser and self.ser.is_open:
+            self.ser.close()
+
+ser = SerialWrapper()
 
 class MotionTrackingApp(QWidget):
     def __init__(self):
         super().__init__()
+        self.setup_ui()
+        self.setup_camera()
+        self.setup_variables()
+        self.setup_timers()
 
-        self.picam2 = Picamera2()
-        self.picam2.configure(self.picam2.create_still_configuration({"size": (640, 480)}))
-        self.picam2.start()
-
+    def setup_ui(self):
+         # Main window setup
+        self.setWindowTitle("Motion Tracking System")
+        self.resize(1200, 800)
+        
+        # Video display
         self.video_label = QLabel(self)
         self.video_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-
-        self.toggle_button = QPushButton("Iniciar Rastreamento")
-        self.toggle_button_calib = QPushButton("Iniciar Calibração")
-        self.fire_button = QPushButton("Disparar")
-        self.motor_calib_button = QPushButton("Calibrar Motores")
-
+        self.video_label.setAlignment(Qt.AlignCenter)
+        self.video_label.setStyleSheet("background-color: black;")
+        
+        # Control buttons
+        self.toggle_button = QPushButton("Start Tracking")
+        self.toggle_button_calib = QPushButton("Calibrate")
+        self.fire_button = QPushButton("FIRE")
+        self.motor_calib_button = QPushButton("Motor Calibration")
+        
+        # Button styling
+        button_style = """
+            QPushButton {
+                padding: 8px;
+                font-weight: bold;
+                min-width: 100px;
+            }
+            QPushButton#fire_button {
+                background-color: #ff4444;
+                color: white;
+            }
+        """
+        self.fire_button.setObjectName("fire_button")
+        self.setStyleSheet(button_style)
+        
+        # Connect buttons
         self.toggle_button.clicked.connect(self.toggle_tracking)
-        self.toggle_button_calib.clicked.connect(self.toggle_calib)
+        self.toggle_button_calib.clicked.connect(self.toggle_calibration)
         self.fire_button.clicked.connect(self.trigger_fire)
         self.motor_calib_button.clicked.connect(self.calibrate_motors)
-
-        self.threshold_slider = QSlider(Qt.Orientation.Horizontal)
-        self.threshold_slider.setMinimum(1)
-        self.threshold_slider.setMaximum(200)
-        self.threshold_slider.setValue(5)
-        self.threshold_slider.setTickInterval(10)
-        self.threshold_slider.valueChanged.connect(self.update_threshold)
-
-        self.distinction_slider = QSlider(Qt.Orientation.Horizontal)
-        self.distinction_slider.setMinimum(10)
-        self.distinction_slider.setMaximum(10000)
-        self.distinction_slider.setValue(6000)
-        self.distinction_slider.setTickInterval(10)
-        self.distinction_slider.valueChanged.connect(self.update_distinction)
-
-        self.threshold_label = QLabel(f"Threshold: {self.threshold_slider.value()}")
-        self.distinction_label = QLabel(f"Distinction: {self.distinction_slider.value()}")
-
-        self.up_button = QPushButton("⬆️")
-        self.down_button = QPushButton("⬇️")
-        self.left_button = QPushButton("⬅️")
-        self.right_button = QPushButton("➡️")
-
-        self.up_button.clicked.connect(lambda: self.send_commands("[0,1,0]"))
-        self.down_button.clicked.connect(lambda: self.send_commands("[0,2,0]"))
-        self.left_button.clicked.connect(lambda: self.send_commands("[2,0,0]"))
-        self.right_button.clicked.connect(lambda: self.send_commands("[1,0,0]"))
-
-        self.servo_x_slider = QSlider(Qt.Orientation.Horizontal)
-        self.servo_x_slider.setMinimum(0)
-        self.servo_x_slider.setMaximum(180)
-        self.servo_x_slider.setValue(90)
-        self.servo_x_slider.setTickInterval(10)
-        self.servo_x_slider.sliderReleased.connect(self.update_servo_x)
-
-        self.servo_y_slider = QSlider(Qt.Orientation.Horizontal)
-        self.servo_y_slider.setMinimum(0)
-        self.servo_y_slider.setMaximum(180)
-        self.servo_y_slider.setValue(90)
-        self.servo_y_slider.setTickInterval(10)
-        self.servo_y_slider.sliderReleased.connect(self.update_servo_y)
-
-        self.yes_button = QPushButton("Diz que sim")
-        self.no_button = QPushButton("Diz que não")
-        self.mega_yes_button = QPushButton("Mega sim")
-        self.mega_no_button = QPushButton("Mega não")
-
-        self.yes_button.clicked.connect(lambda: self.perform_motion(axis='y', fast=False))
-        self.no_button.clicked.connect(lambda: self.perform_motion(axis='x', fast=False))
-        self.mega_yes_button.clicked.connect(lambda: self.perform_motion(axis='y', fast=True))
-        self.mega_no_button.clicked.connect(lambda: self.perform_motion(axis='x', fast=True))
-
-        ctrl_group = QGroupBox("Controlo Principal")
+        
+        # Threshold controls
+        self.threshold_slider = QSlider(Qt.Horizontal)
+        self.threshold_slider.setRange(1, 100)
+        self.threshold_slider.setValue(20)
+        self.threshold_label = QLabel(f"Motion Threshold: {self.threshold_slider.value()}")
+        
+        # Object size controls
+        self.size_slider = QSlider(Qt.Horizontal)
+        self.size_slider.setRange(100, 10000)
+        self.size_slider.setValue(3000)
+        self.size_label = QLabel(f"Min Object Size: {self.size_slider.value()} px")
+        
+        # Manual control buttons
+        self.up_button = QPushButton("↑")
+        self.down_button = QPushButton("↓")
+        self.left_button = QPushButton("←")
+        self.right_button = QPushButton("→")
+        
+        # Button size policy
+        for btn in [self.up_button, self.down_button, self.left_button, self.right_button]:
+            btn.setFixedSize(50, 50)
+        
+        # Connect manual controls
+        self.up_button.clicked.connect(lambda: self.send_commands("[0,1,5]"))
+        self.down_button.clicked.connect(lambda: self.send_commands("[0,2,5]"))
+        self.left_button.clicked.connect(lambda: self.send_commands("[2,0,5]"))
+        self.right_button.clicked.connect(lambda: self.send_commands("[1,0,5]"))
+        
+        # Create control groups
+        ctrl_group = QGroupBox("Main Controls")
         ctrl_layout = QVBoxLayout()
         ctrl_layout.addWidget(self.toggle_button)
         ctrl_layout.addWidget(self.toggle_button_calib)
         ctrl_layout.addWidget(self.fire_button)
         ctrl_layout.addWidget(self.motor_calib_button)
         ctrl_group.setLayout(ctrl_layout)
-
-        threshold_group = QGroupBox("Parâmetros de Rastreamento")
+        
+        threshold_group = QGroupBox("Tracking Parameters")
         threshold_layout = QVBoxLayout()
         threshold_layout.addWidget(self.threshold_label)
         threshold_layout.addWidget(self.threshold_slider)
-        threshold_layout.addWidget(self.distinction_label)
-        threshold_layout.addWidget(self.distinction_slider)
+        threshold_layout.addWidget(self.size_label)
+        threshold_layout.addWidget(self.size_slider)
         threshold_group.setLayout(threshold_layout)
-
-        manual_group = QGroupBox("Controlo Manual dos Servos")
+        
+        manual_group = QGroupBox("Manual Control")
         manual_layout = QGridLayout()
         manual_layout.addWidget(self.up_button, 0, 1)
         manual_layout.addWidget(self.left_button, 1, 0)
         manual_layout.addWidget(self.right_button, 1, 2)
         manual_layout.addWidget(self.down_button, 2, 1)
         manual_group.setLayout(manual_layout)
-
+        
+        # Modified servo layout with center markers
         servo_layout = QVBoxLayout()
-        servo_layout.addWidget(QLabel("Servo X (0-180):"))
+        servo_layout.addWidget(QLabel("Servo X (30-150°):"))
+        self.servo_x_slider = QSlider(Qt.Orientation.Horizontal)
+        self.servo_x_slider.setRange(30, 150)
+        self.servo_x_slider.setValue(90)
         servo_layout.addWidget(self.servo_x_slider)
-        servo_layout.addWidget(QLabel("Servo Y (0-180):"))
+        
+        servo_layout.addWidget(QLabel("Servo Y (30-150°):"))
+        self.servo_y_slider = QSlider(Qt.Orientation.Horizontal)
+        self.servo_y_slider.setRange(30, 150)
+        self.servo_y_slider.setValue(90)
         servo_layout.addWidget(self.servo_y_slider)
-
-        easter_group = QGroupBox("Easter Eggs")
+        
+        # Easter egg buttons
+        self.easter_group = QGroupBox("Special Functions")
         easter_layout = QVBoxLayout()
+        
+        self.yes_button = QPushButton("Nod (Yes)")
+        self.no_button = QPushButton("Shake (No)")
+        self.mega_yes_button = QPushButton("Excited Yes!")
+        self.mega_no_button = QPushButton("Angry No!")
+        
+        # Connect easter eggs
+        self.yes_button.clicked.connect(lambda: self.perform_motion('y', False))
+        self.no_button.clicked.connect(lambda: self.perform_motion('x', False))
+        self.mega_yes_button.clicked.connect(lambda: self.perform_motion('y', True))
+        self.mega_no_button.clicked.connect(lambda: self.perform_motion('x', True))
+        
         easter_layout.addWidget(self.yes_button)
         easter_layout.addWidget(self.no_button)
         easter_layout.addWidget(self.mega_yes_button)
         easter_layout.addWidget(self.mega_no_button)
-        easter_group.setLayout(easter_layout)
-
+        self.easter_group.setLayout(easter_layout)
+        
+        # Right side panel layout
         right_layout = QVBoxLayout()
         right_layout.addWidget(ctrl_group)
         right_layout.addWidget(threshold_group)
         right_layout.addWidget(manual_group)
-        right_layout.addLayout(servo_layout)
-        right_layout.addWidget(easter_group)
-
+        right_layout.addLayout(servo_layout)  # This is where servo controls were added
+        right_layout.addWidget(self.easter_group)
+        right_layout.addStretch()
+        
+        # Scroll area for controls
         right_container = QWidget()
         right_container.setLayout(right_layout)
-        right_container.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
-
+        
         scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
         scroll.setWidget(right_container)
-
+        scroll.setWidgetResizable(True)
+        scroll.setMinimumWidth(350)
+        
+        # Main layout
         main_layout = QHBoxLayout()
-        main_layout.addWidget(self.video_label, 3)
-        main_layout.addWidget(scroll, 2)
-
+        main_layout.addWidget(self.video_label, 4)  # 80% space for video
+        main_layout.addWidget(scroll, 1)            # 20% space for controls
         self.setLayout(main_layout)
 
-        self.setWindowTitle("Rastreamento de Movimento")
-        self.resize(1000, 700)
+    def setup_camera(self):
+        self.picam2 = Picamera2()
+        try:
+            config = self.picam2.create_still_configuration(
+                main={"size": (640, 480)},
+                transform=Qt.Horizontal)
+            self.picam2.configure(config)
+            self.picam2.start()
+        except Exception as e:
+            print(f"Camera error: {e}")
+            self.show_error_message("Camera initialization failed")
 
+    def setup_variables(self):
         self.tracking_enabled = False
         self.calib_enabled = False
         self.previous_frame = None
-        self.threshold = 5
+        self.threshold = 20  # Increased default threshold
         self.distinction_threshold = 6000
-        self.tracked_objects = {}
-        self.object_persistence = {}
-        self.max_lost_frames = 10
-        self.tolerancia = 1
-        self.pos_x = 0
-        self.pos_y = 0
+        self.tolerancia = 10  # Increased tolerance
+        self.pos_x = 90
+        self.pos_y = 90
+        self.servo_limits = {
+            'x': (30, 150),
+            'y': (30, 150)
+        }
+        self.k_p = 0.5  # Proportional gain
+        self.k_i = 0.01  # Integral gain
+        self.k_d = 0.1  # Derivative gain
+        self.prev_error_x = 0
+        self.prev_error_y = 0
+        self.integral_x = 0
+        self.integral_y = 0
 
+    def setup_timers(self):
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_frame)
-        self.timer.start(30)
+        self.timer.start(50)  # Reduced frame rate for stability
+        
+        self.serial_timer = QTimer()
+        self.serial_timer.timeout.connect(self.read_serial_feedback)
+        self.serial_timer.start(100)
 
-        self.read_serial_timer = QTimer()
-        self.read_serial_timer.timeout.connect(self.read_serial_feedback)
-        self.read_serial_timer.start(100)
+    def follow_object(self, large, frame, fire=False):
+        try:
+            x, y, w, h = cv2.boundingRect(large)
+            obj_center_x = x + w // 2
+            obj_center_y = y + h // 2
+            
+            frame_center_x = frame.shape[1] // 2
+            frame_center_y = frame.shape[0] // 2
+            
+            # Calculate errors
+            error_x = obj_center_x - frame_center_x
+            error_y = obj_center_y - frame_center_y
+            
+            # PID control for X axis
+            self.integral_x += error_x
+            derivative_x = error_x - self.prev_error_x
+            output_x = self.k_p * error_x + self.k_i * self.integral_x + self.k_d * derivative_x
+            self.prev_error_x = error_x
+            
+            # PID control for Y axis (INVERTED because camera Y increases downward)
+            self.integral_y += error_y
+            derivative_y = error_y - self.prev_error_y
+            output_y = -(self.k_p * error_y + self.k_i * self.integral_y + self.k_d * derivative_y)
+            self.prev_error_y = error_y
+            
+            # Apply movement
+            if abs(error_x) > self.tolerancia:
+                direction_x = 1 if output_x > 0 else 2
+                steps_x = min(int(abs(output_x)), 10)  # Limit max steps
+                self.send_commands(f"[{direction_x},{steps_x},0]")
+            
+            if abs(error_y) > self.tolerancia:
+                direction_y = 1 if output_y > 0 else 2  # Note: Corrected direction
+                steps_y = min(int(abs(output_y)), 10)  # Limit max steps
+                self.send_commands(f"[0,{direction_y},{steps_y}]")
+            
+            if fire and abs(error_x) <= self.tolerancia and abs(error_y) <= self.tolerancia:
+                self.send_commands("[0,0,1]")
+                
+            # Draw debug info
+            cv2.line(frame, (frame_center_x-20, frame_center_y), (frame_center_x+20, frame_center_y), (0,255,0), 1)
+            cv2.line(frame, (frame_center_x, frame_center_y-20), (frame_center_x, frame_center_y+20), (0,255,0), 1)
+            cv2.putText(frame, f"Xerr:{error_x:.1f}", (10, 20), 
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,255,255), 1)
+            cv2.putText(frame, f"Yerr:{error_y:.1f}", (10, 40), 
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,255,255), 1)
+            
+        except Exception as e:
+            print(f"Tracking error: {e}")
 
-    def perform_motion(self, axis='y', fast=False):
-        delay = 100 if fast else 300
-        repetitions = 3
-        amplitude = 20
-        base_val = self.servo_y_slider.value() if axis == 'y' else self.servo_x_slider.value()
-        plus = min(180, base_val + amplitude)
-        minus = max(0, base_val - amplitude)
+    def send_commands(self, command):
+        if not ser.write(f"{command}\n".encode()):
+            print("Failed to send command to Arduino")
 
-        def sequence(i):
-            if i >= repetitions:
-                return
-            if ser:
+    def toggle_tracking(self):
+        try:
+            self.tracking_enabled = not self.tracking_enabled
+            self.toggle_button.setText("Stop Tracking" if self.tracking_enabled else "Start Tracking")
+            if self.tracking_enabled:
+                self.prev_frame = None
+        except Exception as e:
+            print(f"Error toggling tracking: {e}")
+            self.tracking_enabled = False
+            self.toggle_button.setText("Start Tracking")
+
+    def toggle_calibration(self):
+        try:
+            self.calib_enabled = not self.calib_enabled
+            self.toggle_button_calib.setText("Stop Calibration" if self.calib_enabled else "Start Calibration")
+            
+            if self.calib_enabled:
+                self.calib_step = 0
+                self.calib_timer = QTimer()
+                self.calib_timer.timeout.connect(self.run_calibration)
+                self.calib_timer.start(200)
+            else:
+                if hasattr(self, 'calib_timer'):
+                    self.calib_timer.stop()
+        except Exception as e:
+            print(f"Calibration error: {e}")
+            self.calib_enabled = False
+            self.toggle_button_calib.setText("Start Calibration")
+
+    def trigger_fire(self):
+        try:
+            if ser and ser.write(b"[0,0,1]\n"):
+                self.fire_button.setStyleSheet("background-color: #aa0000;")
+                QTimer.singleShot(500, lambda: self.fire_button.setStyleSheet("background-color: #ff4444;"))
+        except Exception as e:
+            print(f"Fire command failed: {e}")
+
+    def send_commands(self, command):
+        try:
+            if ser and ser.write(f"{command}\n".encode()):
+                return True
+            return False
+        except Exception as e:
+            print(f"Command send failed: {e}")
+            return False
+
+    def perform_motion(self, axis, fast=False):
+        try:
+            delay = 100 if fast else 300
+            repetitions = 3
+            amplitude = 20
+            
+            base_val = self.servo_y_slider.value() if axis == 'y' else self.servo_x_slider.value()
+            plus = min(180, base_val + amplitude)
+            minus = max(0, base_val - amplitude)
+
+            def sequence(i):
+                if i >= repetitions:
+                    return
                 if axis == 'y':
-                    ser.write(f"SERVOY:{plus}\n".encode())
-                    QTimer.singleShot(delay, lambda: ser.write(f"SERVOY:{minus}\n".encode()))
-                    QTimer.singleShot(2 * delay, lambda: ser.write(f"SERVOY:{base_val}\n".encode()))
+                    self.send_commands(f"SERVOY:{plus}\n")
+                    QTimer.singleShot(delay, lambda: self.send_commands(f"SERVOY:{minus}\n"))
                 else:
-                    ser.write(f"SERVOX:{plus}\n".encode())
-                    QTimer.singleShot(delay, lambda: ser.write(f"SERVOX:{minus}\n".encode()))
-                    QTimer.singleShot(2 * delay, lambda: ser.write(f"SERVOX:{base_val}\n".encode()))
-            QTimer.singleShot(3 * delay, lambda: sequence(i + 1))
+                    self.send_commands(f"SERVOX:{plus}\n")
+                    QTimer.singleShot(delay, lambda: self.send_commands(f"SERVOX:{minus}\n"))
+                QTimer.singleShot(2*delay, lambda: self.send_commands(
+                    f"SERVO{'Y' if axis == 'y' else 'X'}:{base_val}\n"))
+                QTimer.singleShot(3*delay, lambda: sequence(i+1))
 
-        sequence(0)
-
-    def calibrate_motors(self):
-        if ser:
-            ser.write(b"CALIBRAR\n")
-
-    def update_servo_x(self):
-        value = self.servo_x_slider.value()
-        if ser:
-            ser.write(f"SERVOX:{value}\n".encode())
-
-    def update_servo_y(self):
-        value = self.servo_y_slider.value()
-        if ser:
-            ser.write(f"SERVOY:{value}\n".encode())
+            sequence(0)
+        except Exception as e:
+            print(f"Motion sequence failed: {e}")
 
     def read_serial_feedback(self):
-        if ser and ser.in_waiting:
-            try:
+        try:
+            if ser and ser.in_waiting:
                 line = ser.readline().decode('utf-8').strip()
                 if line.startswith("POS:"):
                     _, x, y = line.split(":")
                     self.servo_x_slider.setValue(int(x))
                     self.servo_y_slider.setValue(int(y))
-                    # Update current positions for tracking
                     self.pos_x = int(x)
                     self.pos_y = int(y)
-            except Exception as e:
-                print(f"Serial read error: {e}")
-
-    def toggle_tracking(self):
-        self.tracking_enabled = not self.tracking_enabled
-        self.toggle_button.setText("Parar Rastreamento" if self.tracking_enabled else "Iniciar Rastreamento")
-
-    def toggle_calib(self):
-        self.calib_enabled = not self.calib_enabled
-        self.toggle_button_calib.setText("Parar Calibração" if self.calib_enabled else "Iniciar Calibração")
-
-        if self.calib_enabled:
-            self.fim = 0
-            self.x_ok = 0
-            self.y_ok = 0
-            self.calib_timer = QTimer()
-            self.calib_timer.timeout.connect(self.calib_step)
-            self.calib_timer.start(200)
-        else:
-            self.calib_timer.stop()
-
-    def calib_step(self):
-        if self.fim:
-            self.calib_timer.stop()
-            self.toggle_button.setText("Iniciar Rastreamento")
-            print("Calibração concluída")
-            return
-
-        frame = self.picam2.capture_array()
-        altura, comprimento, _ = frame.shape
-        center_frame_x = comprimento // 2
-        center_frame_y = altura // 2
-
-        cv2.line(frame, (center_frame_x, center_frame_y - 20), (center_frame_x, center_frame_y + 20), (0, 0, 0), 2)
-        cv2.line(frame, (center_frame_x - 20, center_frame_y), (center_frame_x + 20, center_frame_y), (0, 0, 0), 2)
-
-        q_image = self.convert_cv_qt(frame)
-        self.video_label.setPixmap(q_image)
-
-        self.pos_x, self.pos_y = self.detect_red_dot(frame)
-
-        if self.pos_x is None or self.pos_y is None:
-            print("Erro: Laser não encontrado!")
-            return
-
-        # Proportional control gains (adjust these experimentally)
-        Kx = 0.1
-        Ky = 0.1
-
-        # Calculate errors between detected dot and frame center
-        error_x = center_frame_x - self.pos_x
-        error_y = center_frame_y - self.pos_y
-
-        # Adjust X-axis if error is larger than the tolerance
-        if abs(error_x) > self.tolerancia:
-            step_x = int(Kx * error_x)
-            if step_x > 0:
-                # Move right (e.g., command "1" with magnitude)
-                self.send_commands(f"[1,{abs(step_x)},0]")
-            else:
-                # Move left (e.g., command "2" with magnitude)
-                self.send_commands(f"[2,{abs(step_x)},0]")
-        else:
-            self.x_ok = 1
-
-        # Adjust Y-axis if error is larger than the tolerance
-        if abs(error_y) > self.tolerancia:
-            step_y = int(Ky * error_y)
-            if step_y > 0:
-                # Move down (e.g., command "2" with magnitude)
-                self.send_commands(f"[0,2,{abs(step_y)}]")
-            else:
-                # Move up (e.g., command "1" with magnitude)
-                self.send_commands(f"[0,1,{abs(step_y)}]")
-        else:
-            self.y_ok = 1
-
-        if self.x_ok and self.y_ok:
-            self.fim = 1
-
-
-    def send_commands(self, lista):
-        if ser:
-            ser.write(f"{str(lista)}\n".encode())
-
-    def detect_red_dot(self, frame):
-        hsv = cv2.cvtColor(frame, cv2.COLOR_RGB2HSV)
-        lower_red1 = np.array([0,120,70])
-        upper_red1 = np.array([10,255,255])
-        lower_red2 = np.array([170,120,70])
-        upper_red2 = np.array([180, 255, 255])
-
-        mask1 = cv2.inRange(hsv, lower_red1, upper_red1)
-        mask2 = cv2.inRange(hsv, lower_red2, upper_red2)
-        mask = cv2.bitwise_or(mask1, mask2)
-
-        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-        if not contours:
-            return None, None
-
-        largest_contour = max(contours, key=cv2.contourArea)
-        x, y, w, h = cv2.boundingRect(largest_contour)
-        center_x = x + w // 2
-        center_y = y + h // 2
-
-        cv2.circle(frame, (center_x, center_y), 5, (0, 255, 0), -1)
-        cv2.putText(frame, f"({center_x}, {center_y})", (center_x + 10, center_y - 10),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-
-        return center_x, center_y
-
-    def update_threshold(self, value):
-        self.threshold = value
-        self.threshold_label.setText(f"Threshold: {value}")
-
-    def update_distinction(self, value):
-        self.distinction_threshold = value
-        self.distinction_label.setText(f"Distinction: {value}")
-
-    def detect_motion_objects(self, previous_frame, current_frame):
-        diff = cv2.absdiff(previous_frame, current_frame)
-        _, motion_mask = cv2.threshold(diff, self.threshold, 255, cv2.THRESH_BINARY)
-        contours, _ = cv2.findContours(motion_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        new_objects = []
-
-        for contour in contours:
-            if cv2.contourArea(contour) > self.distinction_threshold:
-                x, y, w, h = cv2.boundingRect(contour)
-                center_x, center_y = x + w // 2, y + h // 2
-                new_objects.append(((center_x, center_y), (x, y, w, h)))
-
-        largest_contour = max(contours, key=cv2.contourArea) if contours else None
-
-        return new_objects, motion_mask, largest_contour
-
-    def update_frame(self, fire=False):
-        frame = self.picam2.capture_array()
-        if frame is None:
-            return
-
-        gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-
-        if self.tracking_enabled and self.previous_frame is not None:
-            detected_objects, motion_mask, large = self.detect_motion_objects(self.previous_frame, gray_frame)
-            colors = [(0, 0, 255), (255, 0, 0), (0, 255, 255), (255, 0, 255)]
-
-            for i, (center, bbox) in enumerate(detected_objects):
-                color = colors[i % len(colors)]
-                cv2.circle(frame, center, 5, color, -1)
-                x, y, w, h = bbox
-                cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
-                cv2.putText(frame, f"Objeto {i+1}", (x, y - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
-
-            frame[motion_mask > 0] = (0, 255, 0)
-            if large is not None:
-                self.follow_object(large, frame, fire)
-
-        self.previous_frame = gray_frame.copy()
-        q_image = self.convert_cv_qt(frame)
-        self.video_label.setPixmap(q_image)
-
-    def follow_object(self, large, frame, fire=False):
-        x, y, w, h = cv2.boundingRect(large)
-        center_x, center_y = x + w // 2, y + h // 2
-        
-        # Get current servo positions from sliders
-        current_x = self.servo_x_slider.value()
-        current_y = self.servo_y_slider.value()
-        
-        # Calculate movement needed
-        move_x = center_x - (frame.shape[1] // 2)
-        move_y = center_y - (frame.shape[0] // 2)
-        
-        if abs(move_x) > self.tolerancia:
-            direction_x = 1 if move_x > 0 else 2
-            self.send_commands(f"[{direction_x},0,0]")
-            
-        if abs(move_y) > self.tolerancia:
-            direction_y = 2 if move_y > 0 else 1  # Note: Y axis might be inverted
-            self.send_commands(f"[0,{direction_y},0]")
-            
-        if fire and abs(move_x) <= self.tolerancia and abs(move_y) <= self.tolerancia:
-            self.send_commands("[0,0,1]")
-
-    def trigger_fire(self):
-        self.update_frame(fire=True)
-
-    def convert_cv_qt(self, frame):
-        rgb_image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        h, w, ch = rgb_image.shape
-        bytes_per_line = ch * w
-        qt_image = QImage(rgb_image.data, w, h, bytes_per_line, QImage.Format.Format_RGB888)
-        return QPixmap.fromImage(qt_image)
+        except Exception as e:
+            print(f"Serial read error: {e}")
+    
+    def closeEvent(self, event):
+        self.timer.stop()
+        self.serial_timer.stop()
+        if self.picam2:
+            self.picam2.stop()
+        ser.close()
+        event.accept()
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    window = MotionTrackingApp()
-    window.show()
-    sys.exit(app.exec())
+    try:
+        window = MotionTrackingApp()
+        window.show()
+        sys.exit(app.exec())
+    except Exception as e:
+        print(f"Fatal error: {e}")
+        ser.close()
