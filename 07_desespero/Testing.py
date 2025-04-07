@@ -234,7 +234,7 @@ class MotionTrackingApp(QWidget):
 
     def setup_timers(self):
         self.timer = QTimer()
-        self.timer.timeout.connect(self.update_frame)
+        #self.timer.timeout.connect(self.update_frame)
         self.timer.start(50)  # Reduced frame rate for stability
         
         self.serial_timer = QTimer()
