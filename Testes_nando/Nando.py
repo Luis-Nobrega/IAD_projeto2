@@ -102,13 +102,13 @@ class MotionTrackingApp(QWidget):
         threshold_layout.addWidget(self.distinction_slider)
         threshold_group.setLayout(threshold_layout)
 
-        manual_group = QGroupBox("Controlo Manual dos Servos")
+        """manual_group = QGroupBox("Controlo Manual dos Servos")
         manual_layout = QGridLayout()
         manual_layout.addWidget(self.up_button, 0, 1)
         manual_layout.addWidget(self.left_button, 1, 0)
         manual_layout.addWidget(self.right_button, 1, 2)
         manual_layout.addWidget(self.down_button, 2, 1)
-        manual_group.setLayout(manual_layout)
+        manual_group.setLayout(manual_layout)"""
 
         servo_layout = QVBoxLayout()
         servo_layout.addWidget(QLabel("Servo X (0-180):"))
