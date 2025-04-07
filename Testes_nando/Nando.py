@@ -89,7 +89,7 @@ class MotionTrackingApp(QWidget):
         ctrl_group = QGroupBox("Controlo Principal")
         ctrl_layout = QVBoxLayout()
         ctrl_layout.addWidget(self.toggle_button)
-        ctrl_layout.addWidget(self.toggle_button_calib)
+        #ctrl_layout.addWidget(self.toggle_button_calib)
         ctrl_layout.addWidget(self.fire_button)
         ctrl_layout.addWidget(self.motor_calib_button)
         ctrl_group.setLayout(ctrl_layout)
