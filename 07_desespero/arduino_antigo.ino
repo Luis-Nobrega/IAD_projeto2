@@ -19,10 +19,10 @@ void setup() {
 
 void movement1(int signal) {
   if (signal == 1) {
-    pos1 = constrain(pos1 - passo, 0, 180);
+    pos1 = constrain(pos1 - passo, 30, 150);
     servo1.write(pos1);
   } else if (signal == 2) {
-    pos1 = constrain(pos1 + passo, 0, 180);
+    pos1 = constrain(pos1 + passo, 30, 150);
     servo1.write(pos1);
   } else {
     servo1.write(pos1);
