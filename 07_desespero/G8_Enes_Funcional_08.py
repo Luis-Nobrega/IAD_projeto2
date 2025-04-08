@@ -55,8 +55,8 @@ class MotionTrackingApp(QWidget):
         self.down_button = QPushButton("⬇️")
         self.left_button = QPushButton("⬅️")
         self.right_button = QPushButton("➡️")
-        self.left_button_missile = QPushButton("⬅️")
-        self.right_button_missile = QPushButton("➡️")
+        self.left_button_missile = QPushButton("➡️")
+        self.right_button_missile = QPushButton("⬅️")
 
         self.up_button.clicked.connect(lambda: self.send_commands("[0,1,0]"))
         self.down_button.clicked.connect(lambda: self.send_commands("[0,2,0]"))

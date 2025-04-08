@@ -60,13 +60,25 @@ void move_servo_y(int direction, int steps) {
   delay(WAIT_DELAY);
 }
 
-void fire_missile() {
-  servo_fire.write(180);
-  delay(500);
-  servo_fire.write(0);
-  delay(500);
-  servo_fire.write(90);
-  delay(500);
+void missile(int signal){
+  if (signal == 1) { 
+      servo3.write(0); // Move forward
+      delay(19 * wait); // manually tested for full rotation
+      servo3.write(180);
+      delay(38 * wait);
+      servo3.write(0);
+      delay(19 * wait);
+      servo3.write(90);
+  }
+  else if (signal == 2) { 
+      servo3.write(0); // Move backward
+      delay(5 * wait); 
+      servo3.write(90);
+  } else if (signal == 3){
+      servo3.write(180); // Move backward
+      delay(5 * wait); 
+      servo3.write(90);
+  }
 }
 
 void process_command(String input) {
