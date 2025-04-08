@@ -6,6 +6,7 @@ Servo servo_y;  // Vertical servo
 Servo servo_fire;
 
 // Configuration
+const int wait = 20; // Delay in ms
 const int WAIT_DELAY = 10;  // ms
 const float STEP_SIZE = 1.5; // degrees per step
 const int SERVO_X_MIN = 30;
@@ -62,22 +63,22 @@ void move_servo_y(int direction, int steps) {
 
 void missile(int signal){
   if (signal == 1) { 
-      servo3.write(0); // Move forward
+      servo_fire.write(0); // Move forward
       delay(19 * wait); // manually tested for full rotation
-      servo3.write(180);
+      servo_fire.write(180);
       delay(38 * wait);
-      servo3.write(0);
+      servo_fire.write(0);
       delay(19 * wait);
-      servo3.write(90);
+      servo_fire.write(90);
   }
   else if (signal == 2) { 
-      servo3.write(0); // Move backward
+      servo_fire.write(0); // Move backward
       delay(5 * wait); 
-      servo3.write(90);
+      servo_fire.write(90);
   } else if (signal == 3){
-      servo3.write(180); // Move backward
+      servo_fire.write(180); // Move backward
       delay(5 * wait); 
-      servo3.write(90);
+      servo_fire.write(90);
   }
 }
 
