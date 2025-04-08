@@ -171,6 +171,8 @@ class MotionTrackingApp(QWidget):
         self.tolerancia = 1
         self.pos_x = 0
         self.pos_y = 0
+        self.angle_v = 90 # Estou assumir que sim
+        self.angle_h = 90
 
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_frame)
@@ -224,6 +226,9 @@ class MotionTrackingApp(QWidget):
                 line = ser.readline().decode('utf-8').strip()
                 if line.startswith("POS:"):
                     _, x, y = line.split(":")
+                    self.angle_h = int(x)
+                    self.angle_v = int(y)
+
                     self.servo_x_slider.setValue(int(x))
                     self.servo_y_slider.setValue(int(y))
             except Exception as e:
@@ -389,25 +394,33 @@ class MotionTrackingApp(QWidget):
         self.video_label.setPixmap(q_image)
 
     def follow_object(self, large, frame, fire=False):
+        horizontal_tolerance = 5
+        vertical_tolerance = 5
+        fov_horizontal = 53.5 # in degrees
+        fov_vertical = 41.41
+        
         altura, comprimento, _ = frame.shape
-        center_frame_x = comprimento // 2
-        center_frame_y = altura // 2
 
-        if not self.pos_x and not self.pos_y:
-            self.pos_x = center_frame_x
-            self.pos_y = center_frame_y
+        degrees_per_pixel_horizontal = fov_horizontal / comprimento
+        degrees_per_pixel_vertical = fov_vertical / altura
 
         x, y, w, h = cv2.boundingRect(large)
         center_x, center_y = x + w // 2, y + h // 2
 
-        if self.pos_x < center_x - self.tolerancia:
+        angle_x_base = 90 - fov_horizontal/2 
+        angle_y_base = 90 - fov_vertical/2
+
+        angle_x = angle_x_base + (center_x * degrees_per_pixel_horizontal)
+        angle_y = angle_y_base + (center_y * degrees_per_pixel_vertical)
+
+        if self.angle_h < angle_x - horizontal_tolerance:
             self.send_commands("[1,0,0]")
-        elif self.pos_x > center_x + self.tolerancia:
+        elif self.angle_h > angle_x + horizontal_tolerance:
             self.send_commands("[2,0,0]")
 
-        if self.pos_y < center_y - self.tolerancia:
+        if self.angle_v < angle_y - vertical_tolerance:
             self.send_commands("[0,2,0]")
-        elif self.pos_y > center_y + self.tolerancia:
+        elif self.angle_v < angle_y - vertical_tolerance:
             self.send_commands("[0,1,0]")
 
     def trigger_fire(self):

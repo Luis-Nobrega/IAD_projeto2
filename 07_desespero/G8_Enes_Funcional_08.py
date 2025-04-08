@@ -284,10 +284,10 @@ class MotionTrackingApp(QWidget):
             step_x = int(Kx * error_x)
             if step_x > 0:
                 # Move right (e.g., command "1" with magnitude)
-                self.send_commands(f"[1,{abs(step_x)},0]")
+                self.send_commands(f"[1,0,0]")
             else:
                 # Move left (e.g., command "2" with magnitude)
-                self.send_commands(f"[2,{abs(step_x)},0]")
+                self.send_commands(f"[2,0,0]")
         else:
             self.x_ok = 1
 
@@ -296,10 +296,10 @@ class MotionTrackingApp(QWidget):
             step_y = int(Ky * error_y)
             if step_y > 0:
                 # Move down (e.g., command "2" with magnitude)
-                self.send_commands(f"[0,2,{abs(step_y)}]")
+                self.send_commands(f"[0,2,0]")
             else:
                 # Move up (e.g., command "1" with magnitude)
-                self.send_commands(f"[0,1,{abs(step_y)}]")
+                self.send_commands(f"[0,1,0]")
         else:
             self.y_ok = 1
 
