@@ -414,9 +414,9 @@ class MotionTrackingApp(QWidget):
         angle_y = angle_y_base + (center_y * degrees_per_pixel_vertical)
 
             # Horizontal movement
-        if 180 - self.angle_h > angle_x:
+        if self.angle_h > 180 - angle_x:
             self.send_commands("[1,0,0]")  # Move right
-        elif 180 - self.angle_h < angle_x:
+        elif self.angle_h < 180 - angle_x:
             self.send_commands("[2,0,0]")  # Move left
 
         # Vertical movement
