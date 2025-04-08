@@ -6,7 +6,6 @@ Servo servo3; // Servo to release missile
 int wait = 20; // Delay in ms
 float pos1 = 90;
 float pos2 = 90;
-float pos = 90;
 float passo = 0.5;
 const int servo_X_min = 30;
 const int servo_X_max = 150;
@@ -83,12 +82,22 @@ void loop() {
             delay(wait);
             missile(signal3);
         }
-        if (input == "CALIBRAR") {
+        else if (input == "CALIBRAR") {
         pos1 = 100;
         pos2 = 90;
         servo1.write(100);  // Or whatever is the center
         servo2.write(90);
-  }
+        }
+        else if (input.startsWith("SERVOX:")) {
+            int value = input.substring(7).toInt();
+            pos1 = constrain(value, servo_X_min, servo_X_max);
+            servo_x.write(pos1);
+          } 
+        else if (input.startsWith("SERVOY:")) {
+        int value = input.substring(7).toInt();
+        pos2 = constrain(value, servo_Y_min, servo_Y_max);
+        servo_y.write(pos2);
+        } 
     }
   
 
