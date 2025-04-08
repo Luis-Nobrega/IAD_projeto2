@@ -139,6 +139,7 @@ class MotionTrackingApp(QWidget):
         right_layout.addWidget(ctrl_group)
         right_layout.addWidget(threshold_group)
         right_layout.addWidget(manual_group)
+        right_layout.addWidget(manual_group_missile)
         right_layout.addLayout(servo_layout)
         right_layout.addWidget(easter_group)
 
