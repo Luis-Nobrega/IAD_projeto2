@@ -15,10 +15,6 @@ void setup() {
     servo2.attach(3);
     servo3.attach(4); 
 
-    servo3.write(180); // Move forward
-    delay(5 * wait);
-    servo3.write(90);
-
     delay(500);
 }
 
@@ -50,10 +46,12 @@ void movement2(int signal){
 
 void missile(int signal){
     if (signal == 1) { 
-        servo3.write(180); // Move forward
-        delay(5 * wait); 
+        servo3.write(0); // Move forward
+        delay(19 * wait); // manually tested for full rotation
+        servo3.write(180);
+        delay(38 * wait);
         servo3.write(0);
-        delay(5 * wait);
+        delay(19 * wait);
         servo3.write(90);
     }
 }
