@@ -7,10 +7,10 @@ int wait = 20; // Delay in ms
 float pos1 = 90;
 float pos2 = 90;
 float passo = 0.5;
-const int servo_X_min = 30;
-const int servo_X_max = 150;
-const int servo_Y_min = 30;
-const int servo_Y_max = 150;
+const int servo_X_min = 60;
+const int servo_X_max = 120;
+const int servo_Y_min = 60;
+const int servo_Y_max = 120;
 
 void setup() {
     Serial.begin(9600); // Start serial communication

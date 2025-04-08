@@ -413,15 +413,19 @@ class MotionTrackingApp(QWidget):
         angle_x = angle_x_base + (center_x * degrees_per_pixel_horizontal)
         angle_y = angle_y_base + (center_y * degrees_per_pixel_vertical)
 
+            # Horizontal movement
         if self.angle_h < angle_x - horizontal_tolerance:
-            self.send_commands("[1,0,0]")
+            self.send_commands("[1,0,0]")  # Move right
         elif self.angle_h > angle_x + horizontal_tolerance:
-            self.send_commands("[2,0,0]")
+            self.send_commands("[2,0,0]")  # Move left
 
+        # Vertical movement
         if self.angle_v < angle_y - vertical_tolerance:
-            self.send_commands("[0,2,0]")
-        elif self.angle_v < angle_y - vertical_tolerance:
-            self.send_commands("[0,1,0]")
+            self.send_commands("[0,2,0]")  # Move down
+        elif self.angle_v > angle_y + vertical_tolerance:  # Corrected condition
+            self.send_commands("[0,1,0]")  # Move up
+        
+        print(f"Angle X: {angle_x}, Angle Y: {angle_y}, Servo X: {self.angle_h}, Servo Y: {self.angle_v}")
 
     def trigger_fire(self):
         self.send_commands("[0,0,1]")
