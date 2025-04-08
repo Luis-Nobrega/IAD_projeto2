@@ -54,6 +54,15 @@ void missile(int signal){
         delay(19 * wait);
         servo3.write(90);
     }
+    else if (signal == 2) { 
+        servo3.write(0); // Move backward
+        delay(5 * wait); 
+        servo3.write(90);
+    } else if (signal == 3){
+        servo3.write(180); // Move backward
+        delay(5 * wait); 
+        servo3.write(90);
+    }
 }
 
 void loop() {

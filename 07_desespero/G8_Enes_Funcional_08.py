@@ -55,11 +55,16 @@ class MotionTrackingApp(QWidget):
         self.down_button = QPushButton("⬇️")
         self.left_button = QPushButton("⬅️")
         self.right_button = QPushButton("➡️")
+        self.left_button_missile = QPushButton("⬅️")
+        self.right_button_missile = QPushButton("➡️")
 
         self.up_button.clicked.connect(lambda: self.send_commands("[0,1,0]"))
         self.down_button.clicked.connect(lambda: self.send_commands("[0,2,0]"))
         self.left_button.clicked.connect(lambda: self.send_commands("[2,0,0]"))
         self.right_button.clicked.connect(lambda: self.send_commands("[1,0,0]"))
+        self.left_button_missile.clicked.connect(lambda: self.send_commands("[0,0,2]"))
+        self.right_button_missile.clicked.connect(lambda: self.send_commands("[0,0,3]"))
+        
 
         self.servo_x_slider = QSlider(Qt.Orientation.Horizontal)
         self.servo_x_slider.setMinimum(0)
@@ -108,6 +113,13 @@ class MotionTrackingApp(QWidget):
         manual_layout.addWidget(self.right_button, 1, 2)
         manual_layout.addWidget(self.down_button, 2, 1)
         manual_group.setLayout(manual_layout)
+
+        manual_group_missile = QGroupBox("Ajuste do missil")
+        manual_layout_missile = QGridLayout()
+        manual_layout_missile.addWidget(self.right_button_missile, 0, 0)
+        manual_layout_missile.addWidget(self.left_button_missile, 0, 2)
+        manual_group_missile.setLayout(manual_layout_missile)
+        
 
         servo_layout = QVBoxLayout()
         servo_layout.addWidget(QLabel("Servo X (0-180):"))
