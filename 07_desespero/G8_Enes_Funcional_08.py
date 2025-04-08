@@ -406,9 +406,9 @@ class MotionTrackingApp(QWidget):
             self.send_commands("[2,0,0]")
 
         if self.pos_y < center_y - self.tolerancia:
-            self.send_commands("[0,1,0]")
-        elif self.pos_y > center_y + self.tolerancia:
             self.send_commands("[0,2,0]")
+        elif self.pos_y > center_y + self.tolerancia:
+            self.send_commands("[0,1,0]")
         #elif self.pos_x == center_x and self.pos_y == center_y and fire:
             #self.send_commands("[0,0,1]")
 

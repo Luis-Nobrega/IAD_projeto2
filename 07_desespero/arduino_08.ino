@@ -8,6 +8,10 @@ float pos1 = 90;
 float pos2 = 90;
 float pos = 90;
 float passo = 0.5;
+const int servo_X_min = 30;
+const int servo_X_max = 150;
+const int servo_Y_min = 30;
+const int servo_Y_max = 150;
 
 void setup() {
     Serial.begin(9600); // Start serial communication
@@ -21,10 +25,10 @@ void setup() {
 void movement1(int signal){
     // 180 front; 90 stop; 0 backwards
     if (signal == 1) { 
-        pos1 = constrain(pos1 - passo, 0, 180);
+        pos1 = constrain(pos1 - passo, servo_X_min, servo_X_max);
         servo1.write(pos1 - passo); // Move forward
     } else if (signal == 2) { 
-        pos1 = constrain(pos1 + passo, 0, 180);
+        pos1 = constrain(pos1 + passo, servo_X_min, servo_X_max);
         servo1.write(pos1 + passo); // Move backward verificar
     } else {
         servo1.write(pos1); // Stop
@@ -34,10 +38,10 @@ void movement1(int signal){
 void movement2(int signal){
     // 180 front; 90 stop; 0 backwards
     if (signal == 1) { 
-        pos2 = constrain(pos2 + passo, 0, 180);
+        pos2 = constrain(pos2 + passo, servo_Y_min, servo_Y_max);
         servo2.write(pos2 + passo); // Move forward
     } else if (signal == 2) { 
-        pos2 = constrain(pos2 - passo, 0, 180);
+        pos2 = constrain(pos2 - passo, servo_Y_min, servo_Y_max);
         servo2.write(pos2 - passo); // Move backward
     } else {
         servo2.write(pos2); // Stop

@@ -110,6 +110,7 @@ void process_command(String input) {
     int x_steps = input.substring(3, input.indexOf(',', 3)).toInt();
     int y_dir = input[input.indexOf(',', 3)+1] - '0';
     int y_steps = input.substring(input.indexOf(',', input.indexOf(',', 3)+1)+1, input.length()-1).toInt();
+    int fire = input[input.length()-2] - '0';
     
     if (x_dir >= 0 && x_dir <= 2 && x_steps > 0) {
       move_servo_x(x_dir, x_steps);
@@ -118,7 +119,7 @@ void process_command(String input) {
       move_servo_y(y_dir, y_steps);
     }
     if (input.indexOf('1', input.indexOf(',', input.indexOf(',', 3)+1)+1) != -1) {
-      fire_missile();
+      missile(fire); 
     }
   }
 }
