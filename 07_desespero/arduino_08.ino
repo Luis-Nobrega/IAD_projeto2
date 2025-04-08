@@ -91,14 +91,22 @@ void loop() {
         else if (input.startsWith("SERVOX:")) {
             int value = input.substring(7).toInt();
             pos1 = constrain(value, servo_X_min, servo_X_max);
-            servo_x.write(pos1);
+            servo1.write(pos1);
           } 
         else if (input.startsWith("SERVOY:")) {
         int value = input.substring(7).toInt();
         pos2 = constrain(value, servo_Y_min, servo_Y_max);
-        servo_y.write(pos2);
+        servo2.write(pos2);
         } 
     }
+    static unsigned long last_feedback = 0;
+    if (millis() - last_feedback >= 100) {
+    Serial.print("POS:");
+    Serial.print((int)pos1);
+    Serial.print(":");
+    Serial.println((int)pos2);
+    last_feedback = millis();
+  }
   
 
     delay(wait); // Small delay to allow stable communication
